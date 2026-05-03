@@ -1,0 +1,286 @@
+// ════════════════════════════════════════════════════════════
+// app/api/stats/route.ts  — Live platform stats for header
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export const revalidate = 60 // cache 60s
+
+export async function GET() {
+  const supabase = createServerClient()
+
+  const [
+    { count: voices },
+    { count: encouragements },
+    { count: live },
+  ] = await Promise.all([
+    supabase.from('posts').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
+    supabase.from('encouragements').select('*', { count: 'exact', head: true }),
+    // "live now" = posts created in the last 10 minutes
+    supabase.from('posts').select('*', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .eq('is_deleted', false),
+  ])
+
+  return NextResponse.json({
+    voices:         voices ?? 0,
+    encouragements: encouragements ?? 0,
+    live:           live ?? 0,
+  })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/notifications/unread-count/route.ts
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function GET() {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ count: 0 })
+
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('recipient_id', user.id)
+    .eq('is_read', false)
+
+  return NextResponse.json({ count: count ?? 0 })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/badges/route.ts  — Get current user's badges
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function GET() {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ badges: [] })
+
+  const { data, error } = await supabase
+    .from('badges')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('earned_at', { ascending: true })
+
+  if (error) return NextResponse.json({ badges: [] })
+  return NextResponse.json({ badges: data })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/rising-voices/route.ts  — Top profiles by encouragements
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export const revalidate = 300 // cache 5 min
+
+export async function GET() {
+  const supabase = createServerClient()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url, encouragements_received, is_verified_pro, is_spiritual')
+    .order('encouragements_received', { ascending: false })
+    .limit(6)
+
+  if (error) return NextResponse.json({ profiles: [] })
+  return NextResponse.json({ profiles: data })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/reports/route.ts  — Report a post
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function POST(req: Request) {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { post_id, reason } = await req.json()
+  if (!post_id || !reason) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+  const { error } = await supabase
+    .from('reports')
+    .insert({ reporter_id: user.id, post_id, reason })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/profile/[username]/route.ts  — Public profile lookup
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function GET(_req: Request, { params }: { params: { username: string } }) {
+  const supabase = createServerClient()
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, bio, avatar_url, topics, is_verified_pro, is_spiritual, followers_count, voices_count, encouragements_received')
+    .eq('username', params.username)
+    .single()
+
+  if (error || !profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { data: posts } = await supabase
+    .from('posts')
+    .select('id, type, body, mood, topic, media_url, media_duration, likes_count, encouragements_count, replies_count, created_at')
+    .eq('user_id', profile.id)
+    .eq('is_deleted', false)
+    .eq('is_anonymous', false)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  const { data: badges } = await supabase
+    .from('badges')
+    .select('badge_key, earned_at')
+    .eq('user_id', profile.id)
+
+  return NextResponse.json({ profile, posts: posts ?? [], badges: badges ?? [] })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/search/route.ts  — Search posts and profiles
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const q = searchParams.get('q')?.trim()
+  if (!q || q.length < 2) return NextResponse.json({ posts: [], profiles: [] })
+
+  const supabase = createServerClient()
+
+  const [postsRes, profilesRes] = await Promise.all([
+    supabase.from('posts')
+      .select('id, type, body, topic, mood, created_at, profiles(id, username, display_name, avatar_url)')
+      .ilike('body', `%${q}%`)
+      .eq('is_deleted', false)
+      .eq('is_anonymous', false)
+      .limit(10),
+    supabase.from('profiles')
+      .select('id, username, display_name, avatar_url, bio, encouragements_received')
+      .or(`display_name.ilike.%${q}%,username.ilike.%${q}%,bio.ilike.%${q}%`)
+      .limit(6),
+  ])
+
+  return NextResponse.json({
+    posts:    postsRes.data  ?? [],
+    profiles: profilesRes.data ?? [],
+  })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/topics/[name]/route.ts  — Increment topic voice count
+// (called server-side when a post is published with a topic)
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function POST(_req: Request, { params }: { params: { name: string } }) {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Upsert topic and increment count
+  const { data: existing } = await supabase
+    .from('topics')
+    .select('id, voices_count')
+    .eq('name', params.name)
+    .single()
+
+  if (existing) {
+    await supabase.from('topics').update({
+      voices_count: existing.voices_count + 1,
+      last_active_at: new Date().toISOString(),
+    }).eq('id', existing.id)
+  }
+
+  return NextResponse.json({ success: true })
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/auth/callback/route.ts  — OAuth redirect handler
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') ?? '/feed'
+
+  if (code) {
+    const supabase = createServerClient()
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (!error && data.user) {
+      // Ensure profile row exists (first Google sign-in)
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .single()
+
+      if (!existing) {
+        const meta = data.user.user_metadata
+        const username = (meta?.name ?? meta?.email?.split('@')[0] ?? 'user')
+          .toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30)
+
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          display_name: meta?.full_name ?? meta?.name ?? 'New Voice',
+          username: `${username}_${data.user.id.slice(0, 4)}`,
+          avatar_url: meta?.avatar_url ?? null,
+        })
+        await supabase.from('notification_prefs').insert({ user_id: data.user.id })
+      }
+
+      return NextResponse.redirect(`${origin}${next}`)
+    }
+  }
+
+  return NextResponse.redirect(`${origin}/login?error=oauth`)
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/api/account/delete/route.ts  — Delete own account
+// ════════════════════════════════════════════════════════════
+import { NextResponse } from 'next/server'
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
+
+export async function DELETE() {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Soft-delete all posts
+  await supabase.from('posts').update({ is_deleted: true }).eq('user_id', user.id)
+
+  // Delete profile (cascades to notifications, prefs, badges, etc.)
+  await supabase.from('profiles').delete().eq('id', user.id)
+
+  // Delete auth user (requires service role)
+  const admin = createAdminClient()
+  await admin.auth.admin.deleteUser(user.id)
+
+  return NextResponse.json({ success: true })
+}
