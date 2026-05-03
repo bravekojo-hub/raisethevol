@@ -1,0 +1,505 @@
+// ════════════════════════════════════════════════════════════
+// app/(auth)/login/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+
+export default function LoginPage() {
+  const supabase = createClient()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true); setError('')
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError(error.message); setLoading(false) }
+    else window.location.href = '/feed'
+  }
+
+  async function handleGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${location.origin}/auth/callback` },
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-[#3C3489] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <div className="text-center mb-8">
+          <img src="/raise_the_vol_logo.png" className="w-16 h-16 rounded-full mx-auto mb-3" alt="RTV"/>
+          <h1 className="text-2xl font-bold text-[#1a1a2e] font-syne">Welcome back</h1>
+          <p className="text-sm text-gray-500 mt-1">Sign in to raise your volume</p>
+        </div>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="email" placeholder="Email address" value={email}
+            onChange={e => setEmail(e.target.value)} required
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"
+          />
+          <input
+            type="password" placeholder="Password" value={password}
+            onChange={e => setPassword(e.target.value)} required
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"
+          />
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne hover:bg-[#534AB7] transition disabled:opacity-60">
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+        <button onClick={handleGoogle}
+          className="w-full mt-3 border border-gray-200 rounded-xl py-3 text-sm font-medium hover:bg-gray-50 transition flex items-center justify-center gap-2">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+        <p className="text-center text-sm text-gray-500 mt-6">
+          No account? <Link href="/signup" className="text-[#7F77DD] font-medium">Sign up free</Link>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(auth)/signup/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+
+export default function SignupPage() {
+  const supabase = createClient()
+  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true); setError('')
+
+    const { data, error: signupErr } = await supabase.auth.signUp({ email, password })
+    if (signupErr) { setError(signupErr.message); setLoading(false); return }
+
+    // Create profile row
+    if (data.user) {
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        display_name: name,
+        username: username.toLowerCase(),
+      })
+      // Create default notification prefs
+      await supabase.from('notification_prefs').insert({ user_id: data.user.id })
+    }
+    window.location.href = '/feed'
+  }
+
+  return (
+    <div className="min-h-screen bg-[#3C3489] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <div className="text-center mb-8">
+          <img src="/raise_the_vol_logo.png" className="w-16 h-16 rounded-full mx-auto mb-3" alt="RTV"/>
+          <h1 className="text-2xl font-bold text-[#1a1a2e] font-syne">Join Raise The Volume</h1>
+          <p className="text-sm text-gray-500 mt-1">Your voice matters here</p>
+        </div>
+        <form onSubmit={handleSignup} className="space-y-4">
+          <input type="text" placeholder="Display name" value={name} onChange={e => setName(e.target.value)} required
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"/>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+            <input type="text" placeholder="username" value={username} onChange={e => setUsername(e.target.value)} required
+              className="w-full border border-gray-200 rounded-xl pl-8 pr-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"/>
+          </div>
+          <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"/>
+          <input type="password" placeholder="Password (min 8 chars)" value={password} onChange={e => setPassword(e.target.value)} required minLength={8}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7F77DD] transition"/>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne hover:bg-[#534AB7] transition disabled:opacity-60">
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
+        </form>
+        <p className="text-center text-sm text-gray-500 mt-6">
+          Already have an account? <Link href="/login" className="text-[#7F77DD] font-medium">Sign in</Link>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/layout.tsx  — Shell with Header + BottomNav
+// ════════════════════════════════════════════════════════════
+import Header from '@/components/layout/Header'
+import BottomNav from '@/components/layout/BottomNav'
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="max-w-[430px] mx-auto min-h-screen bg-white relative shadow-[0_0_60px_rgba(83,74,183,0.12)]">
+      <Header />
+      <main className="pb-20">{children}</main>
+      <BottomNav />
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/feed/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import { useFeed } from '@/hooks/useFeed'
+import PostCard from '@/components/feed/PostCard'
+import FeedFilter from '@/components/feed/FeedFilter'
+import type { FeedFilter as FF } from '@/types'
+
+export default function FeedPage() {
+  const [filter, setFilter] = useState<FF>({ type: 'all' })
+  const { posts, loading, loadingMore, hasMore, fetchMore, toggleEncourage, toggleLike } = useFeed(filter)
+
+  return (
+    <div className="p-3.5">
+      <FeedFilter current={filter.type} onChange={t => setFilter({ type: t })} />
+      {loading ? (
+        <div className="space-y-3">
+          {[1,2,3].map(i => <div key={i} className="h-48 bg-gray-100 rounded-2xl animate-pulse"/>)}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          <p className="text-lg font-semibold">No voices yet</p>
+          <p className="text-sm mt-1">Be the first to speak in this space.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {posts.map(post => (
+            <PostCard key={post.id} post={post}
+              onEncourage={() => toggleEncourage(post.id)}
+              onLike={() => toggleLike(post.id)} />
+          ))}
+          {hasMore && (
+            <button onClick={fetchMore} disabled={loadingMore}
+              className="w-full py-3 text-sm text-[#7F77DD] font-medium disabled:opacity-50">
+              {loadingMore ? 'Loading...' : 'Load more voices'}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/speak/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import TextComposer from '@/components/speak/TextComposer'
+import VoiceRecorder from '@/components/speak/VoiceRecorder'
+import VideoUploader from '@/components/speak/VideoUploader'
+import { uploadBlobToR2 } from '@/lib/r2/upload'
+import { useRouter } from 'next/navigation'
+
+type Tab = 'text' | 'voice' | 'video'
+
+export default function SpeakPage() {
+  const [tab, setTab] = useState<Tab>('text')
+  const [publishing, setPublishing] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const router = useRouter()
+
+  async function publish(payload: any, blob?: Blob, filename?: string) {
+    setPublishing(true)
+    let media_url: string | undefined
+    if (blob && filename) media_url = await uploadBlobToR2(blob, filename)
+
+    await fetch('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, media_url }),
+    })
+    setPublishing(false)
+    setSuccess(true)
+    setTimeout(() => { setSuccess(false); router.push('/feed') }, 2500)
+  }
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'text', label: 'Write it' },
+    { key: 'voice', label: 'Voice note' },
+    { key: 'video', label: 'Video' },
+  ]
+
+  return (
+    <div className="p-3.5">
+      {/* Hero */}
+      <div className="bg-[#3C3489] rounded-2xl p-5 mb-4 text-center">
+        <div className="w-14 h-14 bg-[#7F77DD] rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-[#AFA9EC]">
+          <svg viewBox="0 0 28 28" width="26" height="26" fill="none">
+            <path d="M5 11v6h4l8 6V5L9 11H5z" fill="white" stroke="white" strokeWidth="1"/>
+            <path d="M17 10.5c2 1.2 3.2 2.8 3.2 4.5s-1.2 3.3-3.2 4.5" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <h2 className="text-white font-bold text-xl font-syne mb-1">Raise your voice</h2>
+        <p className="text-white/60 text-sm leading-relaxed">Pour it out. Your words matter here.<br/>Someone needs to hear exactly what you have to say.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-full text-sm border transition ${tab === t.key ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#534AB7] font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'text' && <TextComposer onPublish={publish} publishing={publishing} />}
+      {tab === 'voice' && <VoiceRecorder onPublish={publish} publishing={publishing} />}
+      {tab === 'video' && <VideoUploader onPublish={publish} publishing={publishing} />}
+
+      {success && (
+        <div className="bg-[#E1F5EE] border border-[rgba(29,158,117,0.3)] rounded-xl p-4 text-center mt-4">
+          <p className="text-[#0F6E56] font-bold font-syne text-base">Your voice is out there!</p>
+          <p className="text-[#085041] text-sm mt-1">Thank you for sharing. The community will hear you.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/discover/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import type { Topic, Profile } from '@/types'
+
+const CATEGORY_STYLES: Record<string, string> = {
+  Spirituality: 'bg-[#EEEDFE] text-[#534AB7]',
+  Professional: 'bg-[#E1F5EE] text-[#0F6E56]',
+  Experience: 'bg-[#FAEEDA] text-[#633806]',
+  Joy: 'bg-[#FBEAF0] text-[#72243E]',
+}
+
+export default function DiscoverPage() {
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [rising, setRising] = useState<Profile[]>([])
+  const [following, setFollowing] = useState<Set<string>>(new Set())
+  const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/topics').then(r => r.json()).then(d => setTopics(d.topics ?? []))
+    fetch('/api/rising-voices').then(r => r.json()).then(d => setRising(d.profiles ?? []))
+  }, [])
+
+  async function toggleFollow(profileId: string) {
+    await fetch('/api/follows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ following_id: profileId }),
+    })
+    setFollowing(prev => {
+      const next = new Set(prev)
+      next.has(profileId) ? next.delete(profileId) : next.add(profileId)
+      return next
+    })
+  }
+
+  return (
+    <div className="p-3.5">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Trending topics</p>
+      <div className="space-y-2.5 mb-6">
+        {topics.map(t => (
+          <div key={t.id} onClick={() => router.push(`/feed?topic=${encodeURIComponent(t.name)}`)}
+            className="bg-white border border-gray-100 rounded-2xl p-3.5 cursor-pointer hover:border-gray-200 hover:bg-gray-50 transition">
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium inline-block mb-2 ${CATEGORY_STYLES[t.category] ?? 'bg-gray-100 text-gray-600'}`}>
+              {t.category}
+            </span>
+            <p className="text-sm font-semibold text-[#1a1a2e] mb-2 leading-snug font-syne">{t.name}</p>
+            <div className="flex gap-3 text-xs text-gray-400">
+              <span>{t.voices_count} voices</span>
+              <span>{t.videos_count} videos</span>
+              <span>{t.is_trending ? 'Active now' : 'Recent'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Rising voices this week</p>
+      <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100">
+        {rising.map(p => (
+          <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+            <div className="w-10 h-10 rounded-full bg-[#EEEDFE] flex items-center justify-center text-[#534AB7] font-bold text-sm font-syne flex-shrink-0">
+              {p.display_name?.slice(0,2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#1a1a2e] font-syne">{p.display_name}</p>
+              <p className="text-xs text-gray-400">{p.encouragements_received} encouragements this week</p>
+            </div>
+            <button onClick={() => toggleFollow(p.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs border transition ${following.has(p.id) ? 'bg-[#7F77DD] text-white border-[#7F77DD]' : 'text-[#534AB7] border-gray-200 hover:bg-[#EEEDFE]'}`}>
+              {following.has(p.id) ? 'Following' : 'Follow'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/notifications/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useEffect, useState } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import type { Notification } from '@/types'
+
+const NOTIF_COLORS: Record<string, string> = {
+  encourage: 'bg-[#7F77DD]', like: 'bg-[#D4537E]', reply: 'bg-[#7F77DD]',
+  follow: 'bg-[#1D9E75]', trending: 'bg-[#1D9E75]', milestone: 'bg-[#BA7517]',
+}
+
+export default function NotificationsPage() {
+  const [notifs, setNotifs] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/notifications').then(r => r.json()).then(d => {
+      setNotifs(d.notifications ?? [])
+      setLoading(false)
+      // Mark all as read
+      fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: 'all' }),
+      })
+    })
+  }, [])
+
+  if (loading) return <div className="p-4 space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
+
+  return (
+    <div className="p-3.5">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Recent alerts</p>
+      {notifs.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          <p>No notifications yet</p>
+          <p className="text-sm mt-1">When someone encourages or replies to you, you'll see it here.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {notifs.map(n => (
+            <div key={n.id} className={`flex gap-3 py-3.5 ${!n.is_read ? 'opacity-100' : 'opacity-65'}`}>
+              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${NOTIF_COLORS[n.type] ?? 'bg-gray-300'}`}/>
+              <div className="flex-1">
+                <p className="text-sm text-[#1a1a2e] leading-snug">
+                  {n.actor && <strong className="font-medium">{n.actor.display_name} </strong>}
+                  {n.message ?? n.type}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/profile/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useProfile } from '@/hooks/useProfile'
+import { useAuth } from '@/hooks/useAuth'
+import Link from 'next/link'
+
+const BADGE_LABELS: Record<string, string> = {
+  first_voice: 'First voice — you took the leap',
+  hundred_encouragements: '100 encouragements given',
+  joy_spreader: 'Spreader of joy',
+}
+
+export default function ProfilePage() {
+  const { profile, badges, loading } = useProfile()
+  const { signOut } = useAuth()
+
+  if (loading) return <div className="p-4 space-y-3"><div className="h-48 bg-gray-100 rounded-2xl animate-pulse"/></div>
+  if (!profile) return null
+
+  return (
+    <div className="p-3.5">
+      {/* Profile header */}
+      <div className="bg-[#3C3489] rounded-2xl p-6 text-center mb-3.5">
+        {profile.avatar_url
+          ? <img src={profile.avatar_url} className="w-18 h-18 rounded-full mx-auto mb-3 border-3 border-[#AFA9EC] object-cover" alt=""/>
+          : <div className="w-[72px] h-[72px] rounded-full bg-[#7F77DD] flex items-center justify-center text-white text-2xl font-bold font-syne mx-auto mb-3 border-3 border-[#AFA9EC]">
+              {profile.display_name?.slice(0,2).toUpperCase()}
+            </div>
+        }
+        <h2 className="text-white text-xl font-bold font-syne mb-1">{profile.display_name}</h2>
+        <p className="text-white/60 text-sm leading-relaxed">{profile.bio ?? 'No bio yet.'}</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2 mb-3.5">
+        {[
+          { n: profile.voices_count, l: 'Voices shared' },
+          { n: profile.encouragements_received, l: 'Encouragements' },
+          { n: profile.followers_count, l: 'Followers' },
+        ].map(s => (
+          <div key={s.l} className="bg-gray-50 rounded-xl p-3 text-center">
+            <p className="text-xl font-bold font-syne text-[#1a1a2e]">{s.n.toLocaleString()}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{s.l}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Badges */}
+      {badges.length > 0 && (
+        <>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Earned badges</p>
+          <div className="space-y-2 mb-3.5">
+            {badges.map(b => (
+              <div key={b.id} className="flex items-center gap-2 bg-[#EEEDFE] rounded-xl px-3 py-2.5 text-sm text-[#534AB7]">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                {BADGE_LABELS[b.badge_key] ?? b.badge_key}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Settings */}
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Settings</p>
+      <div className="space-y-2">
+        <Link href="/profile/edit" className="block w-full text-center border border-gray-200 rounded-xl py-3 text-sm text-gray-600 hover:bg-gray-50 transition">Edit my profile</Link>
+        <Link href="/profile/notif-prefs" className="block w-full text-center border border-gray-200 rounded-xl py-3 text-sm text-gray-600 hover:bg-gray-50 transition">Notification preferences</Link>
+        <Link href="/privacy" className="block w-full text-center border border-gray-200 rounded-xl py-3 text-sm text-gray-600 hover:bg-gray-50 transition">Privacy &amp; safety</Link>
+        <button onClick={signOut} className="w-full border border-[rgba(216,90,48,0.2)] rounded-xl py-3 text-sm text-[#D85A30] hover:bg-[#FAECE7] transition">Sign out</button>
+      </div>
+    </div>
+  )
+}
