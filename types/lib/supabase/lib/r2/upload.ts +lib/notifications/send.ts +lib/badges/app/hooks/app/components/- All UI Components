@@ -1,0 +1,700 @@
+// ════════════════════════════════════════════════════════════
+// components/layout/Header.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+
+export default function Header() {
+  const [stats, setStats] = useState({ voices: 0, live: 0, encouragements: 0 })
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    fetch('/api/stats').then(r => r.json()).then(d => setStats(d))
+    fetch('/api/notifications/unread-count').then(r => r.json()).then(d => setUnread(d.count ?? 0))
+  }, [])
+
+  return (
+    <header className="bg-[#3C3489] sticky top-0 z-50">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-[42px] h-[42px] rounded-full overflow-hidden border-2 border-[#AFA9EC] flex-shrink-0">
+            <img src="/raise_the_vol_logo.png" className="w-full h-full object-cover" alt="RTV"/>
+          </div>
+          <div>
+            <p className="text-white font-bold text-base leading-tight font-syne">Raise The Volume</p>
+            <p className="text-white/55 text-[11px]">Inspire through every word</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button className="w-[34px] h-[34px] bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <Link href="/notifications" className="w-[34px] h-[34px] bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition relative">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            {unread > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-[#3C3489]"/>}
+          </Link>
+        </div>
+      </div>
+      <div className="flex border-t border-white/10">
+        {[
+          { n: stats.voices.toLocaleString(), l: 'Voices' },
+          { n: stats.live.toLocaleString(), l: 'Live now' },
+          { n: stats.encouragements.toLocaleString(), l: 'Encouragements' },
+        ].map(s => (
+          <div key={s.l} className="flex-1 text-center py-2.5 border-r border-white/10 last:border-r-0">
+            <p className="text-white font-bold text-lg leading-none font-syne">{s.n}</p>
+            <p className="text-white/55 text-[10px] mt-0.5 uppercase tracking-wide">{s.l}</p>
+          </div>
+        ))}
+      </div>
+    </header>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/layout/BottomNav.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const NAV = [
+  { href: '/feed', label: 'Feed', icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+  { href: '/speak', label: 'Speak', icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> },
+  { href: '/discover', label: 'Discover', icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> },
+  { href: '/notifications', label: 'Alerts', icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
+  { href: '/profile', label: 'Me', icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+]
+
+export default function BottomNav() {
+  const path = usePathname()
+  return (
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 flex z-40">
+      {NAV.map(n => {
+        const active = path.startsWith(n.href)
+        return (
+          <Link key={n.href} href={n.href}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] border-b-2 transition ${active ? 'text-[#7F77DD] border-[#7F77DD]' : 'text-gray-400 border-transparent'}`}>
+            {n.icon}
+            {n.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/feed/PostCard.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { formatDistanceToNow } from 'date-fns'
+import VoicePlayer from './VoicePlayer'
+import VideoThumb from './VideoThumb'
+import type { Post } from '@/types'
+import { useRouter } from 'next/navigation'
+
+interface Props { post: Post; onEncourage: () => void; onLike: () => void }
+
+const TYPE_BADGES: Record<string, { label: string; cls: string }> = {
+  voice: { label: 'Voice', cls: 'bg-[#EEEDFE] text-[#534AB7]' },
+  video: { label: 'Video', cls: 'bg-[#FAECE7] text-[#712B13]' },
+  text:  { label: 'Text',  cls: 'bg-[#E1F5EE] text-[#0F6E56]' },
+}
+
+export default function PostCard({ post, onEncourage, onLike }: Props) {
+  const router = useRouter()
+  const profile = post.profiles
+  const badge = TYPE_BADGES[post.type]
+  const initials = profile?.display_name?.slice(0,2).toUpperCase() ?? '??'
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:border-gray-200 transition">
+      {/* Top row */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-10 h-10 rounded-full bg-[#EEEDFE] flex items-center justify-center text-[#534AB7] font-bold text-sm font-syne flex-shrink-0">
+          {profile?.avatar_url
+            ? <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover" alt=""/>
+            : initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[#1a1a2e] font-syne truncate">
+            {post.is_anonymous ? 'Anonymous voice' : (profile?.display_name ?? 'Unknown')}
+          </p>
+          <p className="text-[11px] text-gray-400">{timeAgo} · {post.mood ?? post.topic ?? post.type}</p>
+        </div>
+        <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+      </div>
+
+      {/* Body */}
+      {post.body && <p className="text-sm leading-relaxed text-[#1a1a2e] italic mb-3">"{post.body}"</p>}
+
+      {/* Media */}
+      {post.type === 'voice' && post.media_url && (
+        <VoicePlayer url={post.media_url} duration={post.media_duration ?? 0} />
+      )}
+      {post.type === 'video' && post.media_url && (
+        <VideoThumb url={post.media_url} thumbnail={post.thumbnail_url} topic={post.topic} duration={post.media_duration ?? 0} />
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-1.5 flex-wrap mt-3">
+        <button onClick={onLike}
+          className={`flex items-center gap-1.5 border rounded-full px-2.5 py-1 text-xs transition ${post.has_liked ? 'border-[#D4537E] text-[#D4537E]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill={post.has_liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          {post.likes_count}
+        </button>
+        <button onClick={onEncourage}
+          className={`flex items-center gap-1.5 border rounded-full px-2.5 py-1 text-xs transition ${post.has_encouraged ? 'border-[#7F77DD] text-[#7F77DD]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill={post.has_encouraged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+          </svg>
+          {post.encouragements_count} Encourage
+        </button>
+        <button onClick={() => router.push(`/speak?reply=${post.id}`)}
+          className="flex items-center gap-1.5 border border-gray-200 rounded-full px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-50 transition">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Reply
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/feed/VoicePlayer.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useRef, useState, useEffect } from 'react'
+
+interface Props { url: string; duration: number }
+
+export default function VoicePlayer({ url, duration }: Props) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const onTimeUpdate = () => { setCurrentTime(audio.currentTime); setProgress((audio.currentTime / audio.duration) * 100) }
+    const onEnded = () => setPlaying(false)
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('ended', onEnded)
+    return () => { audio.removeEventListener('timeupdate', onTimeUpdate); audio.removeEventListener('ended', onEnded) }
+  }, [])
+
+  function togglePlay() {
+    const audio = audioRef.current
+    if (!audio) return
+    playing ? audio.pause() : audio.play()
+    setPlaying(!playing)
+  }
+
+  function fmt(s: number) { return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}` }
+
+  return (
+    <div className="bg-[#EEEDFE] rounded-xl px-3 py-2.5 flex items-center gap-2.5 mb-3 cursor-pointer" onClick={togglePlay}>
+      <audio ref={audioRef} src={url} preload="metadata"/>
+      <button className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition ${playing ? 'bg-[#534AB7]' : 'bg-[#7F77DD]'}`}>
+        {playing
+          ? <svg viewBox="0 0 24 24" width="12" height="12" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          : <svg viewBox="0 0 24 24" width="12" height="12" fill="white" style={{marginLeft:'2px'}}><path d="M5 3l14 9-14 9V3z"/></svg>
+        }
+      </button>
+      <div className="flex-1 h-1.5 bg-[#CECBF6] rounded-full overflow-hidden">
+        <div className="h-full bg-[#7F77DD] rounded-full transition-all" style={{ width: `${progress}%` }}/>
+      </div>
+      <span className="text-xs text-[#534AB7] font-medium whitespace-nowrap">
+        {playing ? fmt(currentTime) : fmt(duration)}
+      </span>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/feed/VideoThumb.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+
+interface Props { url: string; thumbnail?: string | null; topic?: string | null; duration: number }
+
+function fmt(s: number) { return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}` }
+
+export default function VideoThumb({ url, thumbnail, topic, duration }: Props) {
+  const [playing, setPlaying] = useState(false)
+
+  if (playing) return (
+    <video src={url} controls autoPlay className="w-full rounded-xl mb-3" style={{maxHeight:'220px'}}/>
+  )
+
+  return (
+    <div onClick={() => setPlaying(true)}
+      className="relative w-full h-32 rounded-xl mb-3 overflow-hidden cursor-pointer bg-[#3C3489] flex items-center justify-center hover:opacity-90 transition">
+      {thumbnail && <img src={thumbnail} className="absolute inset-0 w-full h-full object-cover" alt=""/>}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3C3489] via-[#534AB7]/70 to-[#7F77DD]/50"/>
+      <div className="relative z-10 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#3C3489" style={{marginLeft:'3px'}}><path d="M5 3l14 9-14 9V3z"/></svg>
+      </div>
+      {topic && <span className="absolute top-2.5 left-2.5 z-10 text-[11px] text-white bg-[#3C3489]/75 px-2.5 py-1 rounded-full">{topic}</span>}
+      <span className="absolute bottom-2.5 right-2.5 z-10 text-[11px] text-white bg-black/55 px-1.5 py-0.5 rounded">{fmt(duration)}</span>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/feed/FeedFilter.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+const FILTERS = [
+  { key: 'all', label: 'All voices' },
+  { key: 'voice', label: 'Voice notes' },
+  { key: 'video', label: 'Videos' },
+  { key: 'joy', label: 'Joy & love' },
+  { key: 'spiritual', label: 'Spiritual' },
+]
+
+export default function FeedFilter({ current, onChange }: { current: string; onChange: (t: any) => void }) {
+  return (
+    <div className="flex gap-2 mb-4 overflow-x-auto pb-0.5 scrollbar-hide">
+      {FILTERS.map(f => (
+        <button key={f.key} onClick={() => onChange(f.key)}
+          className={`px-3.5 py-1.5 rounded-full text-[13px] border whitespace-nowrap flex-shrink-0 transition ${current === f.key ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#534AB7] font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+          {f.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/speak/TextComposer.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import type { Audience, Mood } from '@/types'
+
+const MOODS: Mood[] = ['Grateful','Heavy','Hopeful','Joyful','Seeking advice','Just sharing','Celebrating']
+const AUDIENCES: { key: Audience; label: string }[] = [
+  { key: 'everyone', label: 'Everyone' },
+  { key: 'spiritual', label: 'Spiritual' },
+  { key: 'professional', label: 'Professional' },
+]
+
+interface Props { onPublish: (payload: any) => void; publishing: boolean }
+
+export default function TextComposer({ onPublish, publishing }: Props) {
+  const [content, setContent] = useState('')
+  const [mood, setMood] = useState<Mood | ''>('')
+  const [audience, setAudience] = useState<Audience>('everyone')
+  const [isAnon, setIsAnon] = useState(false)
+
+  function submit() {
+    if (!content.trim()) return
+    onPublish({ type: 'text', content, mood, audience, is_anonymous: isAnon })
+  }
+
+  return (
+    <div>
+      <textarea maxLength={500} value={content} onChange={e => setContent(e.target.value)}
+        placeholder="What's on your mind right now? This is your space..."
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none outline-none focus:border-[#AFA9EC] transition leading-relaxed min-h-[100px] bg-gray-50"/>
+      <div className="flex justify-end text-xs text-gray-400 mt-1 mb-3">{content.length} / 500</div>
+
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">How are you feeling?</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {MOODS.map(m => (
+          <button key={m} onClick={() => setMood(mood === m ? '' : m)}
+            className={`px-3 py-1.5 rounded-full text-xs border transition ${mood === m ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#534AB7]' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            {m}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Who can respond?</p>
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {AUDIENCES.map(a => (
+          <button key={a.key} onClick={() => setAudience(a.key)}
+            className={`border rounded-xl py-2.5 text-xs text-center transition ${audience === a.key ? 'border-[#7F77DD] bg-[#EEEDFE] text-[#534AB7] font-medium' : 'border-gray-200 text-gray-500 bg-gray-50'}`}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={submit} disabled={publishing || !content.trim()}
+          className="flex-1 bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne text-sm hover:bg-[#534AB7] transition disabled:opacity-50">
+          {publishing ? 'Publishing...' : 'Publish your voice'}
+        </button>
+        <button onClick={() => { setIsAnon(!isAnon); submit() }}
+          className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500 hover:bg-gray-50 transition">
+          Anon
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/speak/VoiceRecorder.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState, useRef } from 'react'
+import type { Audience } from '@/types'
+
+const TOPICS = ['Mental health','Relationships','Faith & spirituality','Career','Celebration','Family']
+
+interface Props { onPublish: (payload: any, blob: Blob, filename: string) => void; publishing: boolean }
+
+export default function VoiceRecorder({ onPublish, publishing }: Props) {
+  const [recording, setRecording] = useState(false)
+  const [recorded, setRecorded] = useState<{ blob: Blob; duration: number } | null>(null)
+  const [seconds, setSeconds] = useState(0)
+  const [topic, setTopic] = useState('')
+  const [audience, setAudience] = useState<Audience>('everyone')
+  const mrRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const startRef = useRef(0)
+
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const mr = new MediaRecorder(stream)
+    mrRef.current = mr; chunksRef.current = []
+    mr.ondataavailable = e => chunksRef.current.push(e.data)
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+      setRecorded({ blob, duration: Math.round((Date.now() - startRef.current) / 1000) })
+      stream.getTracks().forEach(t => t.stop())
+    }
+    mr.start(); startRef.current = Date.now()
+    setRecording(true); setSeconds(0)
+    timerRef.current = setInterval(() => {
+      setSeconds(s => { if (s >= 299) { stopRecording(); return s } return s + 1 })
+    }, 1000)
+  }
+
+  function stopRecording() {
+    mrRef.current?.stop(); clearInterval(timerRef.current); setRecording(false)
+  }
+
+  function fmt(s: number) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}` }
+
+  function submit() {
+    if (!recorded) return
+    onPublish({ type: 'voice', audience, topic, media_duration: recorded.duration, is_anonymous: false }, recorded.blob, `voice-${Date.now()}.webm`)
+  }
+
+  return (
+    <div>
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center mb-4">
+        <div onClick={recording ? stopRecording : startRecording}
+          className={`w-20 h-20 rounded-full border-2 flex items-center justify-center mx-auto mb-3.5 cursor-pointer transition ${recording ? 'border-[#D85A30] animate-pulse' : 'border-gray-200'}`}>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke={recording ? '#D85A30' : '#9999bb'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </div>
+        <p className="text-sm text-gray-500 mb-1">{recording ? 'Recording... tap to stop' : recorded ? 'Recording saved — ready to publish' : 'Tap to start recording'}</p>
+        <p className="text-3xl font-bold font-syne text-[#1a1a2e] mb-2">{fmt(seconds)}</p>
+        <div className="h-1 bg-gray-200 rounded-full max-w-[200px] mx-auto overflow-hidden">
+          <div className="h-full bg-[#7F77DD] rounded-full transition-all" style={{ width: `${(seconds / 300) * 100}%` }}/>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Max 5 minutes</p>
+      </div>
+
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Topic (optional)</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {TOPICS.map(t => (
+          <button key={t} onClick={() => setTopic(topic === t ? '' : t)}
+            className={`px-3 py-1.5 rounded-full text-xs border transition ${topic === t ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#534AB7]' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <button onClick={submit} disabled={!recorded || publishing}
+        className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne text-sm hover:bg-[#534AB7] transition disabled:opacity-50">
+        {publishing ? 'Uploading & publishing...' : 'Publish voice note'}
+      </button>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/speak/VideoUploader.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useRef, useState } from 'react'
+import type { Audience } from '@/types'
+
+interface Props { onPublish: (payload: any, blob: Blob, filename: string) => void; publishing: boolean }
+
+export default function VideoUploader({ onPublish, publishing }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [caption, setCaption] = useState('')
+  const [audience, setAudience] = useState<Audience>('everyone')
+
+  function handleFile(f: File) {
+    setFile(f); setPreview(URL.createObjectURL(f))
+  }
+
+  function submit() {
+    if (!file) return
+    onPublish({ type: 'video', content: caption, audience, is_anonymous: false }, file, file.name)
+  }
+
+  return (
+    <div>
+      {!preview ? (
+        <div onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center cursor-pointer hover:border-[#AFA9EC] hover:bg-[#EEEDFE]/30 transition mb-4">
+          <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}/>
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#9999bb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2">
+            <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
+          <p className="text-sm font-medium text-[#1a1a2e] mb-1">Tap to record or upload a video</p>
+          <p className="text-xs text-gray-400">Up to 5 minutes · Share your story visually</p>
+        </div>
+      ) : (
+        <div className="mb-4">
+          <video src={preview} controls className="w-full rounded-xl mb-2 max-h-52"/>
+          <button onClick={() => { setFile(null); setPreview(null) }} className="text-xs text-gray-400 hover:text-gray-600">Remove video</button>
+        </div>
+      )}
+
+      <textarea placeholder="Add a caption (optional)..." value={caption} onChange={e => setCaption(e.target.value)}
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none outline-none focus:border-[#AFA9EC] transition leading-relaxed min-h-[70px] bg-gray-50 mb-4"/>
+
+      <button onClick={submit} disabled={!file || publishing}
+        className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne text-sm hover:bg-[#534AB7] transition disabled:opacity-50">
+        {publishing ? 'Uploading & publishing...' : 'Publish video'}
+      </button>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/profile/edit/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState, useEffect } from 'react'
+import { useProfile } from '@/hooks/useProfile'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+const TOPICS = ['Mental health','Faith & spirituality','Career','Relationships','Family','Joy & celebration','Grief & healing']
+
+export default function EditProfilePage() {
+  const { profile, loading, updateProfile } = useProfile()
+  const router = useRouter()
+  const [form, setForm] = useState({ display_name:'', username:'', bio:'', location:'', website:'', topics:[] as string[] })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (profile) setForm({ display_name: profile.display_name??'', username: profile.username??'', bio: profile.bio??'', location: profile.location??'', website: profile.website??'', topics: profile.topics??[] })
+  }, [profile])
+
+  function toggleTopic(t: string) {
+    setForm(f => ({ ...f, topics: f.topics.includes(t) ? f.topics.filter(x => x !== t) : [...f.topics, t] }))
+  }
+
+  async function save() {
+    setSaving(true)
+    await updateProfile(form)
+    setSaving(false)
+    router.push('/profile')
+  }
+
+  if (loading) return <div className="p-4"><div className="h-64 bg-gray-100 rounded-2xl animate-pulse"/></div>
+
+  return (
+    <div className="p-3.5">
+      <div className="flex items-center gap-3 mb-5">
+        <Link href="/profile" className="w-8 h-8 bg-[#EEEDFE] rounded-full flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </Link>
+        <h1 className="text-lg font-bold font-syne text-[#1a1a2e]">Edit my profile</h1>
+      </div>
+
+      <div className="space-y-3 mb-5">
+        {[
+          { label: 'Display name', key: 'display_name', placeholder: 'Your name', type: 'text' },
+          { label: 'Username', key: 'username', placeholder: 'yourhandle', type: 'text', prefix: '@' },
+          { label: 'Location', key: 'location', placeholder: 'City, country...', type: 'text' },
+          { label: 'Website', key: 'website', placeholder: 'https://yoursite.com', type: 'url' },
+        ].map(f => (
+          <div key={f.key}>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">{f.label}</p>
+            <div className="relative">
+              {f.prefix && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{f.prefix}</span>}
+              <input type={f.type} value={(form as any)[f.key]} placeholder={f.placeholder}
+                onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm outline-none focus:border-[#AFA9EC] transition bg-gray-50 ${f.prefix ? 'pl-7 pr-4' : 'px-4'}`}/>
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Bio</p>
+          <textarea maxLength={160} value={form.bio} onChange={e => setForm(f => ({...f, bio: e.target.value}))} placeholder="Tell the community about yourself..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none outline-none focus:border-[#AFA9EC] transition bg-gray-50 min-h-[80px]"/>
+          <p className="text-right text-xs text-gray-400">{form.bio.length}/160</p>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Topics I speak on</p>
+          <div className="flex flex-wrap gap-2">
+            {TOPICS.map(t => (
+              <button key={t} onClick={() => toggleTopic(t)}
+                className={`px-3 py-1.5 rounded-full text-xs border transition ${form.topics.includes(t) ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#534AB7]' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button onClick={save} disabled={saving}
+        className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne text-sm hover:bg-[#534AB7] transition disabled:opacity-50 mb-2">
+        {saving ? 'Saving...' : 'Save changes'}
+      </button>
+      <Link href="/profile" className="block w-full text-center border border-gray-200 rounded-xl py-3 text-sm text-gray-500 hover:bg-gray-50 transition">Cancel</Link>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/profile/notif-prefs/page.tsx
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import type { NotificationPrefs } from '@/types'
+
+interface PrefGroup { label: string; items: { key: keyof NotificationPrefs; title: string; sub: string }[] }
+
+const GROUPS: PrefGroup[] = [
+  { label: 'Encouragements & reactions', items: [
+    { key: 'on_encourage', title: 'Someone encourages your post', sub: 'When a listener taps encourage on your voice' },
+    { key: 'on_like', title: 'Someone loves your post', sub: 'Heart reactions on your voice or video' },
+    { key: 'on_milestone', title: 'Encouragement milestones', sub: 'When you hit 10, 50, 100+ encouragements' },
+  ]},
+  { label: 'Replies & responses', items: [
+    { key: 'on_voice_reply', title: 'Voice note reply', sub: 'When someone replies with a voice note' },
+    { key: 'on_video_reply', title: 'Video reply', sub: 'When someone replies with a video response' },
+    { key: 'on_text_reply', title: 'Written reply', sub: 'Text responses to your posts' },
+    { key: 'on_spiritual_reply', title: 'Spiritual guidance reply', sub: 'When a spiritual member responds' },
+    { key: 'on_pro_reply', title: 'Professional advice reply', sub: 'When a verified professional responds' },
+  ]},
+  { label: 'Followers & community', items: [
+    { key: 'on_new_follower', title: 'New follower', sub: 'When someone follows your voice' },
+    { key: 'on_following_posts', title: 'Someone you follow posts', sub: 'New voices from people you follow' },
+  ]},
+  { label: 'Trending & discovery', items: [
+    { key: 'on_trending', title: 'Your post is trending', sub: 'When your voice starts gaining significant reach' },
+    { key: 'on_suggested_topics', title: 'Suggested topics for you', sub: 'Weekly digest of matching topics' },
+    { key: 'on_rising_voices', title: 'Rising voices to follow', sub: 'Discover new voices in your interests' },
+  ]},
+  { label: 'Email notifications', items: [
+    { key: 'email_weekly', title: 'Weekly summary', sub: 'Your reach, encouragements, and highlights' },
+    { key: 'email_updates', title: 'Community news & updates', sub: 'Product updates and announcements' },
+  ]},
+]
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} className={`w-[42px] h-6 rounded-full relative transition-colors flex-shrink-0 ${on ? 'bg-[#7F77DD]' : 'bg-gray-200'}`}>
+      <span className={`w-[18px] h-[18px] bg-white rounded-full absolute top-[3px] shadow transition-all ${on ? 'left-[21px]' : 'left-[3px]'}`}/>
+    </button>
+  )
+}
+
+export default function NotifPrefsPage() {
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
+  const [saving, setSaving] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/notif-prefs').then(r => r.json()).then(d => setPrefs(d.prefs))
+  }, [])
+
+  function toggle(key: keyof NotificationPrefs) {
+    setPrefs(p => p ? { ...p, [key]: !p[key] } : p)
+  }
+
+  async function save() {
+    if (!prefs) return
+    setSaving(true)
+    await fetch('/api/notif-prefs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefs) })
+    setSaving(false)
+    router.push('/profile')
+  }
+
+  if (!prefs) return <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
+
+  return (
+    <div className="p-3.5">
+      <div className="flex items-center gap-3 mb-5">
+        <Link href="/profile" className="w-8 h-8 bg-[#EEEDFE] rounded-full flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </Link>
+        <h1 className="text-lg font-bold font-syne text-[#1a1a2e]">Notification preferences</h1>
+      </div>
+
+      {/* Master toggle */}
+      <div className="bg-[#EEEDFE] border border-[#CECBF6] rounded-2xl px-4 py-3.5 flex items-center justify-between mb-5">
+        <div>
+          <p className="text-sm font-bold text-[#534AB7] font-syne">All notifications</p>
+          <p className="text-xs text-gray-500 mt-0.5">Master on/off switch</p>
+        </div>
+        <Toggle on={prefs.all_notifs} onToggle={() => toggle('all_notifs')}/>
+      </div>
+
+      <div className={prefs.all_notifs ? '' : 'opacity-40 pointer-events-none'}>
+        {GROUPS.map(g => (
+          <div key={g.label} className="mb-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{g.label}</p>
+            <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100">
+              {g.items.map(item => (
+                <div key={item.key} className="flex items-center justify-between px-4 py-3 gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#1a1a2e]">{item.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">{item.sub}</p>
+                  </div>
+                  <Toggle on={!!prefs[item.key]} onToggle={() => toggle(item.key)}/>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={save} disabled={saving}
+        className="w-full bg-[#7F77DD] text-white rounded-xl py-3 font-semibold font-syne text-sm hover:bg-[#534AB7] transition disabled:opacity-50 mt-2 mb-2">
+        {saving ? 'Saving...' : 'Save preferences'}
+      </button>
+      <Link href="/profile" className="block w-full text-center border border-gray-200 rounded-xl py-3 text-sm text-gray-500 hover:bg-gray-50 transition">Cancel</Link>
+    </div>
+  )
+}
