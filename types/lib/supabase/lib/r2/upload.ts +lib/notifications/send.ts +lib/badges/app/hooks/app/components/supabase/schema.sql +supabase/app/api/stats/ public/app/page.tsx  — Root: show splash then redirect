@@ -1,0 +1,185 @@
+// ════════════════════════════════════════════════════════════
+// app/page.tsx  — Root: show splash then redirect
+// ════════════════════════════════════════════════════════════
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@/lib/supabase/server'
+
+export default async function RootPage() {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // Authenticated → go straight to feed; guests → login
+  redirect(user ? '/feed' : '/login')
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(auth)/layout.tsx  — Auth pages (no nav/header)
+// ════════════════════════════════════════════════════════════
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
+
+// ════════════════════════════════════════════════════════════
+// app/(app)/privacy/page.tsx  — Full Privacy & Safety page
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+
+interface Block { title: string; icon: string; color: string; iconColor: string; content: React.ReactNode }
+
+function AccordionBlock({ title, icon, color, iconColor, content }: Block) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl mb-2.5 overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition text-left">
+        <div className="flex items-center gap-3 text-sm font-semibold text-[#1a1a2e] font-syne">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+            <span className={`text-base ${iconColor}`}>{icon}</span>
+          </div>
+          {title}
+        </div>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9999bb" strokeWidth="2" strokeLinecap="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}>
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 text-sm text-[#6b6b8a] leading-relaxed space-y-2.5 pt-3.5">
+          {content}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PrivacyPage() {
+  return (
+    <div className="p-3.5">
+      <div className="flex items-center gap-3 mb-5">
+        <Link href="/profile" className="w-8 h-8 bg-[#EEEDFE] rounded-full flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </Link>
+        <div>
+          <h1 className="text-lg font-bold font-syne text-[#1a1a2e]">Privacy &amp; Safety</h1>
+          <p className="text-xs text-gray-400">Last updated: January 2025</p>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div className="bg-[#3C3489] rounded-2xl p-5 mb-5 text-center">
+        <div className="w-14 h-14 bg-[#7F77DD] rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-[#AFA9EC]">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h2 className="text-white font-bold text-lg font-syne mb-1.5">Your safety is our priority</h2>
+        <p className="text-white/60 text-sm leading-relaxed">Raise The Volume is a safe space for every voice. We are committed to protecting your privacy, dignity, and wellbeing.</p>
+      </div>
+
+      <AccordionBlock title="Our community promise" icon="🤝" color="bg-[#EEEDFE]" iconColor="text-[#534AB7]" content={<>
+        <p>Raise The Volume exists to give every person a platform to pour out their thoughts, share their story, and connect with others. We are dedicated to making this a place of healing, encouragement, and genuine human connection.</p>
+        <p>We do not tolerate hatred, harassment, or harm of any kind. Every voice deserves to be heard with dignity.</p>
+      </>}/>
+
+      <AccordionBlock title="Data we collect & how we use it" icon="🔒" color="bg-[#E1F5EE]" iconColor="text-[#0F6E56]" content={<>
+        <p><strong className="text-[#1a1a2e]">Account information:</strong> Your name, email, and profile details — used solely to create and maintain your account.</p>
+        <p><strong className="text-[#1a1a2e]">Content you share:</strong> Voice notes, videos, and posts are stored securely. You control who sees them at all times.</p>
+        <p><strong className="text-[#1a1a2e]">Usage data:</strong> Anonymised analytics to improve the platform. Never sold to third parties.</p>
+        <p><strong className="text-[#1a1a2e]">Device information:</strong> Basic device/browser data for security and performance only.</p>
+        <p className="font-semibold text-[#1a1a2e]">We do not sell, rent, or trade your personal data. Period.</p>
+      </>}/>
+
+      <AccordionBlock title="Who can see your content" icon="👁️" color="bg-[#FBEAF0]" iconColor="text-[#72243E]" content={<>
+        <p>You choose your audience every time you post:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong className="text-[#1a1a2e]">Everyone</strong> — full community</li>
+          <li><strong className="text-[#1a1a2e]">Spiritual guidance</strong> — spiritual community members only</li>
+          <li><strong className="text-[#1a1a2e]">Professional only</strong> — verified professionals (therapists, coaches, counsellors)</li>
+          <li><strong className="text-[#1a1a2e]">Anonymous posting</strong> — share without your name visible</li>
+        </ul>
+        <p>You can change or delete any post at any time.</p>
+      </>}/>
+
+      <AccordionBlock title="Content & community standards" icon="⚠️" color="bg-[#FAECE7]" iconColor="text-[#712B13]" content={<>
+        <p>The following is strictly prohibited:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Hate speech, racism, discrimination, or dehumanising content</li>
+          <li>Harassment, bullying, threats, or targeted abuse</li>
+          <li>Sexual content, explicit material, or content involving minors</li>
+          <li>Misinformation, scams, or deceptive content</li>
+          <li>Content promoting self-harm, violence, or dangerous activities</li>
+          <li>Spam, unsolicited advertising, or off-topic promotions</li>
+        </ul>
+        <p>Violations may result in content removal, suspension, or permanent ban.</p>
+      </>}/>
+
+      <AccordionBlock title="Voice & video content safety" icon="🎙️" color="bg-[#EEEDFE]" iconColor="text-[#534AB7]" content={<>
+        <p>Voice notes and videos are hosted on secure, encrypted servers. Only users with the access level you choose can listen or watch.</p>
+        <p>Content is reviewed by our moderation team when flagged. AI-assisted moderation screens for harmful audio patterns before publishing.</p>
+        <p>You may delete any recording at any time — it will be permanently removed from our servers within 30 days.</p>
+      </>}/>
+
+      <AccordionBlock title="Mental health & crisis support" icon="💙" color="bg-[#E1F5EE]" iconColor="text-[#0F6E56]" content={<>
+        <p>If you or someone you know is in crisis, please reach out immediately:</p>
+        <div className="bg-[#EEEDFE] rounded-xl p-3 mt-1">
+          <p className="font-semibold text-[#534AB7] text-sm mb-2">Crisis resources</p>
+          <p className="text-sm leading-loose">🇺🇸 USA — 988 Suicide &amp; Crisis Lifeline: <strong>988</strong><br/>
+          🌍 International — Crisis Text Line: <strong>Text HOME to 741741</strong><br/>
+          🇬🇧 UK — Samaritans: <strong>116 123</strong></p>
+        </div>
+      </>}/>
+
+      <AccordionBlock title="How to report & block" icon="🚩" color="bg-[#FAEEDA]" iconColor="text-[#633806]" content={<>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Tap the share icon on any post → "Report"</li>
+          <li>Long-press any reply to report it</li>
+          <li>Visit a user's profile → three-dot menu → block or report</li>
+        </ul>
+        <p>All reports reviewed within 24 hours. Reporters remain anonymous. Blocking prevents permanent access to your content.</p>
+      </>}/>
+
+      <AccordionBlock title="Your rights & account controls" icon="✅" color="bg-[#EEEDFE]" iconColor="text-[#534AB7]" content={<>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong className="text-[#1a1a2e]">Access:</strong> Request a full data export anytime</li>
+          <li><strong className="text-[#1a1a2e]">Correction:</strong> Edit your profile and posts</li>
+          <li><strong className="text-[#1a1a2e]">Deletion:</strong> Delete posts or your entire account permanently</li>
+          <li><strong className="text-[#1a1a2e]">Portability:</strong> Download your voice notes, videos, and posts</li>
+          <li><strong className="text-[#1a1a2e]">Opt-out:</strong> Unsubscribe from all communications anytime</li>
+        </ul>
+        <p>Contact us at <a href="https://www.raisethevol.com/privacy" className="text-[#7F77DD] font-medium">raisethevol.com/privacy</a></p>
+      </>}/>
+
+      <AccordionBlock title="Cookies & tracking" icon="🍪" color="bg-[#E1F5EE]" iconColor="text-[#0F6E56]" content={<>
+        <p>We use only essential cookies to keep the app working and keep you logged in securely. No advertising cookies, retargeting pixels, or third-party tracking.</p>
+        <p>Manage cookie preferences in your device browser settings at any time.</p>
+      </>}/>
+
+      {/* Contact */}
+      <div className="bg-[#EEEDFE] rounded-2xl p-5 mt-2 text-center">
+        <p className="font-bold font-syne text-[#534AB7] mb-1.5">Questions or concerns?</p>
+        <p className="text-sm text-[#6b6b8a] leading-relaxed mb-3">Our safety team is here for you. Every message is read by a real person.</p>
+        <a href="mailto:safety@raisethevol.com"
+          className="inline-block bg-[#7F77DD] text-white rounded-full px-6 py-2.5 text-sm font-semibold font-syne hover:bg-[#534AB7] transition">
+          Contact safety team
+        </a>
+      </div>
+
+      {/* Social links */}
+      <div className="flex justify-center gap-3.5 mt-5 mb-1">
+        {[
+          { href: 'https://www.facebook.com/raisethevol', label: 'Facebook', color: '#1877F2', svg: <svg viewBox="0 0 24 24" width="16" height="16" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> },
+          { href: 'https://www.instagram.com/raisethevol', label: 'Instagram', color: '#E1306C', svg: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E1306C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg> },
+          { href: 'https://www.x.com/raisethevol', label: 'X', color: '#000', svg: <svg viewBox="0 0 24 24" width="15" height="15" fill="#1a1a2e"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> },
+        ].map(s => (
+          <a key={s.href} href={s.href} target="_blank" rel="noopener"
+            className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:border-gray-300 transition">
+            {s.svg}
+          </a>
+        ))}
+      </div>
+      <p className="text-center text-xs text-gray-400 mb-4">@raisethevol on all platforms</p>
+    </div>
+  )
+}
