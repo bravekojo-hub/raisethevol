@@ -1,0 +1,70 @@
+// ════════════════════════════════════════════════════════════
+// public/manifest.json  — Makes RTV installable as a PWA
+// ════════════════════════════════════════════════════════════
+{
+  "name": "Raise The Volume",
+  "short_name": "RaiseTheVol",
+  "description": "Inspire through every word. Share your voice, be heard.",
+  "start_url": "/feed",
+  "display": "standalone",
+  "background_color": "#3C3489",
+  "theme_color": "#3C3489",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/raise_the_vol_logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/raise_the_vol_logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Speak now",
+      "url": "/speak",
+      "description": "Share your voice right now"
+    },
+    {
+      "name": "My feed",
+      "url": "/feed",
+      "description": "See what the community is sharing"
+    }
+  ],
+  "categories": ["social", "lifestyle", "entertainment"]
+}
+
+// ════════════════════════════════════════════════════════════
+// public/robots.txt
+// ════════════════════════════════════════════════════════════
+/*
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /profile/edit
+Disallow: /profile/notif-prefs
+
+Sitemap: https://www.raisethevol.com/sitemap.xml
+*/
+
+// ════════════════════════════════════════════════════════════
+// app/sitemap.ts  — Dynamic sitemap
+// ════════════════════════════════════════════════════════════
+import type { MetadataRoute } from 'next'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    { url: 'https://www.raisethevol.com', lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: 'https://www.raisethevol.com/feed', lastModified: new Date(), changeFrequency: 'always', priority: 0.9 },
+    { url: 'https://www.raisethevol.com/speak', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: 'https://www.raisethevol.com/discover', lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
+    { url: 'https://www.raisethevol.com/privacy', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
+    { url: 'https://www.raisethevol.com/login', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: 'https://www.raisethevol.com/signup', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+  ]
+}
