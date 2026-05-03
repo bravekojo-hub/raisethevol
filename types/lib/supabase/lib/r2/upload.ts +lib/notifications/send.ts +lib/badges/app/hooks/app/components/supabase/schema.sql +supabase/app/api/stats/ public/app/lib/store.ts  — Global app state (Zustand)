@@ -1,0 +1,200 @@
+// ════════════════════════════════════════════════════════════
+// lib/store.ts  — Global app state (Zustand)
+// ════════════════════════════════════════════════════════════
+import { create } from 'zustand'
+import type { Profile, Notification } from '@/types'
+
+interface Toast { id: string; message: string; type?: 'success' | 'error' | 'info' }
+
+interface AppStore {
+  // Auth
+  profile: Profile | null
+  setProfile: (p: Profile | null) => void
+
+  // Notifications
+  notifications: Notification[]
+  unreadCount: number
+  setNotifications: (n: Notification[]) => void
+  addNotification: (n: Notification) => void
+  markAllRead: () => void
+
+  // Toast
+  toasts: Toast[]
+  showToast: (message: string, type?: Toast['type']) => void
+  dismissToast: (id: string) => void
+}
+
+export const useAppStore = create<AppStore>((set, get) => ({
+  profile: null,
+  setProfile: (profile) => set({ profile }),
+
+  notifications: [],
+  unreadCount: 0,
+  setNotifications: (notifications) => set({
+    notifications,
+    unreadCount: notifications.filter(n => !n.is_read).length,
+  }),
+  addNotification: (n) => set(state => ({
+    notifications: [n, ...state.notifications],
+    unreadCount: state.unreadCount + 1,
+  })),
+  markAllRead: () => set(state => ({
+    notifications: state.notifications.map(n => ({ ...n, is_read: true })),
+    unreadCount: 0,
+  })),
+
+  toasts: [],
+  showToast: (message, type = 'info') => {
+    const id = `toast-${Date.now()}`
+    set(state => ({ toasts: [...state.toasts, { id, message, type }] }))
+    setTimeout(() => get().dismissToast(id), 3000)
+  },
+  dismissToast: (id) => set(state => ({ toasts: state.toasts.filter(t => t.id !== id) })),
+}))
+
+
+// ════════════════════════════════════════════════════════════
+// lib/utils.ts  — Shared utility functions
+// ════════════════════════════════════════════════════════════
+import { formatDistanceToNow, format } from 'date-fns'
+import type { PostType } from '@/types'
+
+/** Format seconds as M:SS */
+export function fmtDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** Relative time e.g. "3 min ago" */
+export function timeAgo(dateStr: string): string {
+  return formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+}
+
+/** Short date for older posts */
+export function shortDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  if (diffDays < 1) return timeAgo(dateStr)
+  if (diffDays < 7) return `${diffDays}d ago`
+  return format(d, 'MMM d')
+}
+
+/** Get initials from display name */
+export function initials(name?: string | null): string {
+  if (!name) return '??'
+  return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+}
+
+/** Validate username format */
+export function isValidUsername(u: string): boolean {
+  return /^[a-z0-9_]{3,30}$/.test(u)
+}
+
+/** Map post type to badge label/color */
+export const POST_TYPE_BADGE: Record<PostType, { label: string; cls: string }> = {
+  voice: { label: 'Voice', cls: 'bg-[#EEEDFE] text-[#534AB7]' },
+  video: { label: 'Video', cls: 'bg-[#FAECE7] text-[#712B13]' },
+  text:  { label: 'Text',  cls: 'bg-[#E1F5EE] text-[#0F6E56]' },
+}
+
+/** Category tag colors for discover */
+export const CATEGORY_BADGE: Record<string, string> = {
+  Spirituality: 'bg-[#EEEDFE] text-[#534AB7]',
+  Professional:  'bg-[#E1F5EE] text-[#0F6E56]',
+  Experience:    'bg-[#FAEEDA] text-[#633806]',
+  Joy:           'bg-[#FBEAF0] text-[#72243E]',
+}
+
+/** Clamp a number between min and max */
+export function clamp(n: number, min: number, max: number): number {
+  return Math.min(Math.max(n, min), max)
+}
+
+/** Generate a consistent avatar color from a string */
+const AVATAR_COLORS = [
+  'bg-[#EEEDFE] text-[#534AB7]',
+  'bg-[#FAECE7] text-[#712B13]',
+  'bg-[#E1F5EE] text-[#0F6E56]',
+  'bg-[#FBEAF0] text-[#72243E]',
+  'bg-[#FAEEDA] text-[#633806]',
+]
+export function avatarColor(id: string): string {
+  const idx = id.charCodeAt(0) % AVATAR_COLORS.length
+  return AVATAR_COLORS[idx]
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/ui/Toast.tsx  — Global toast notifications
+// ════════════════════════════════════════════════════════════
+'use client'
+import { useAppStore } from '@/lib/store'
+
+export default function ToastContainer() {
+  const { toasts, dismissToast } = useAppStore()
+  if (toasts.length === 0) return null
+
+  return (
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-2 items-center pointer-events-none">
+      {toasts.map(t => (
+        <div key={t.id}
+          onClick={() => dismissToast(t.id)}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium shadow-lg pointer-events-auto cursor-pointer transition
+            ${t.type === 'error'   ? 'bg-[#D85A30] text-white' :
+              t.type === 'success' ? 'bg-[#1D9E75] text-white' :
+              'bg-[#1a1a2e] text-white'}`}>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/ui/Avatar.tsx  — Reusable avatar component
+// ════════════════════════════════════════════════════════════
+import Image from 'next/image'
+import { initials, avatarColor } from '@/lib/utils'
+
+interface AvatarProps {
+  src?: string | null
+  name?: string | null
+  id?: string
+  size?: number
+  className?: string
+}
+
+export function Avatar({ src, name, id = '', size = 40, className = '' }: AvatarProps) {
+  const colorCls = avatarColor(id)
+  const style = { width: size, height: size, fontSize: size * 0.32 }
+
+  if (src) return (
+    <Image src={src} alt={name ?? ''} width={size} height={size}
+      className={`rounded-full object-cover flex-shrink-0 ${className}`}
+      style={style}/>
+  )
+  return (
+    <div className={`rounded-full flex items-center justify-center font-bold font-syne flex-shrink-0 ${colorCls} ${className}`}
+      style={style}>
+      {initials(name)}
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════════
+// components/ui/Toggle.tsx  — Reusable toggle switch
+// ════════════════════════════════════════════════════════════
+interface ToggleProps { on: boolean; onToggle: () => void; disabled?: boolean }
+
+export function Toggle({ on, onToggle, disabled = false }: ToggleProps) {
+  return (
+    <button onClick={onToggle} disabled={disabled}
+      className={`w-[42px] h-6 rounded-full relative transition-colors flex-shrink-0 ${on ? 'bg-[#7F77DD]' : 'bg-gray-200'} disabled:opacity-40`}>
+      <span className={`w-[18px] h-[18px] bg-white rounded-full absolute top-[3px] shadow transition-all ${on ? 'left-[21px]' : 'left-[3px]'}`}/>
+    </button>
+  )
+}
